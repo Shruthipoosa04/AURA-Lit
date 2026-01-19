@@ -1,4 +1,6 @@
 import streamlit as st
+import requests
+from collections import defaultdict
 from datetime import datetime
 
 # -------------------- PAGE CONFIG -------------------- #
@@ -9,189 +11,179 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# -------------------- CUSTOM CSS FOR DARK THEME -------------------- #
-st.markdown(
-    """
-    <style>
-    /* Background and text */
-    body, .stApp, .css-18e3th9 {
-        background-color: #111111;
-        color: #f5f5f5;
-    }
-    /* Sidebar */
-    .css-1d391kg {
-        background-color: #1a1a1a;
-        color: #f5f5f5;
-        padding: 20px;
-    }
-    /* Headers */
-    h1, h2, h3 {
-        color: #ffffff;
-        font-family: 'Arial', sans-serif;
-    }
-    /* Buttons */
-    .stButton>button {
-        background-color: #ffffff;
-        color: #111111;
-        font-weight: bold;
-        border-radius: 8px;
-        padding: 10px 20px;
-    }
-    /* Cards */
-    .paper-card {
-        background-color: #1e1e1e;
-        padding: 12px;
-        border-radius: 10px;
-        margin-bottom: 10px;
-        border: 1px solid #333333;
-    }
-    a {
-        color: #ffffff;
-        text-decoration: underline;
-    }
-    </style>
-    """, unsafe_allow_html=True
-)
+# -------------------- CUSTOM CSS (DARK THEME) -------------------- #
+st.markdown("""
+<style>
+body, .stApp {
+    background-color: #111111;
+    color: #f5f5f5;
+}
+h1, h2, h3 {
+    color: #ffffff;
+}
+.stButton>button {
+    background-color: #ffffff;
+    color: #111111;
+    font-weight: bold;
+    border-radius: 8px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # -------------------- SIDEBAR -------------------- #
-st.sidebar.markdown("<h2 style='color:white; text-align:center;'>📚 AURA-Lit AI</h2>", unsafe_allow_html=True)
+st.sidebar.markdown("<h2 style='text-align:center;'>📚 AURA-Lit AI</h2>", unsafe_allow_html=True)
 
-# -------------------- Description -------------------- #
 with st.sidebar.expander("ℹ️ About AURA-Lit", expanded=True):
     st.markdown("""
-    <div style='padding:10px; background-color:#1a1a1a; border-radius:10px;'>
-    <p style='color:#dcdcdc; font-size:14px; line-height:1.5'>
-    <strong>AURA-Lit:</strong> Automated Understanding of Research Articles.  
-    Enter a research title and get:
-    <ul>
-    <li>Relevant academic papers</li>
-    <li>Year-wise evolution of existing systems</li>
-    </ul>
-    </p>
-    </div>
-    """, unsafe_allow_html=True)
+    **AURA-Lit** is an AI-agent-based research assistant that:
+    - Retrieves academic papers
+    - Extracts existing systems
+    - Builds year-wise research evolution
+    """)
 
-# -------------------- Input Section -------------------- #
-with st.sidebar.expander("📝 Submit Research Title", expanded=True):
-    st.markdown("""
-    <p style='color:#dcdcdc; font-size:14px; line-height:1.5'>
-    Use the main page input form to enter your research topic.  
-    You can also enter keywords to refine results.
-    </p>
-    """, unsafe_allow_html=True)
-    keywords = st.text_input("🔑 Keywords (optional)", "")
-    category_filter = st.selectbox(
-        "📂 Filter by Category (optional)",
-        ["All", "Machine Learning", "Cybersecurity", "IoT", "Data Science"]
-    )
-
-# -------------------- Phases Section -------------------- #
 with st.sidebar.expander("🔍 Development Phases", expanded=True):
     st.markdown("""
-    <div style='padding:10px; background-color:#1a1a1a; border-radius:10px;'>
-    <p style='color:#dcdcdc; font-size:13px; line-height:1.5'>
-    <b>Phase 1:</b> Paper retrieval & relevance filtering  
-    <span title="Fetch top relevant papers using Semantic Scholar API.">ℹ️</span><br>
-    <b>Phase 2:</b> Existing system extraction & timeline summary  
-    <span title="Analyze papers and generate year-wise summaries.">ℹ️</span><br>
-    <b>Phase 3:</b> Advanced summarization & trend analysis  
-    <span title="Generate insights and trends from historical research.">ℹ️</span>
-    </p>
-    </div>
-    """, unsafe_allow_html=True)
+    **Phase 1:** Paper Retrieval  
+    **Phase 2:** System Extraction  
+    **Phase 3:** Trend & Insight Generation  
+    """)
 
-# -------------------- Tips Section -------------------- #
-with st.sidebar.expander("💡 Tips & Recommendations", expanded=True):
-    st.markdown("""
-    <div style='padding:10px; background-color:#1a1a1a; border-radius:10px; border-left:3px solid #ffffff'>
-    <p style='color:#dcdcdc; font-size:13px; line-height:1.5'>
-    - Enter concise research titles for better results.<br>
-    - Use relevant keywords separated by commas.<br>
-    - Apply filters to narrow paper search.<br>
-    - Hover over ℹ️ icons in Phases for more info.
-    </p>
-    </div>
-    """, unsafe_allow_html=True)
+# -------------------- AI TOOLS -------------------- #
+def fetch_papers(query, limit=5):
+    try:
+        url = "https://api.semanticscholar.org/graph/v1/paper/search"
+        params = {
+            "query": query,
+            "limit": limit,
+            "fields": "title,authors,year,abstract,url"
+        }
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json().get("data", [])
 
+        papers = []
+        for p in data:
+            papers.append({
+                "title": p.get("title", "N/A"),
+                "authors": ", ".join([a["name"] for a in p.get("authors", [])[:3]]),
+                "year": p.get("year", "N/A"),
+                "abstract": p.get("abstract", ""),
+                "link": p.get("url", "#")
+            })
+        return papers
+    except:
+        return []
 
-# -------------------- MAIN PAGE -------------------- #
+def summarize_papers(papers):
+    summaries = []
+    for p in papers:
+        if p["abstract"]:
+            summaries.append(f"{p['year']}: {p['abstract'][:180]}...")
+    return summaries
+
+def build_timeline(papers):
+    timeline = defaultdict(list)
+    for p in papers:
+        timeline[p["year"]].append(p["title"])
+    return dict(sorted(timeline.items(), reverse=True))
+
+# -------------------- AI AGENT -------------------- #
+class AURALitAgent:
+    def __init__(self):
+        self.thoughts = []
+
+    def think(self, step):
+        self.thoughts.append(step)
+
+    def run(self, query):
+        self.think("Understanding user research intent")
+        self.think("Selecting paper retrieval tool")
+
+        papers = fetch_papers(query)
+
+        if papers:
+            self.think("Papers retrieved successfully")
+            self.think("Summarizing existing systems")
+        else:
+            self.think("API failed, switching to fallback knowledge")
+
+        summaries = summarize_papers(papers)
+        self.think("Building year-wise research evolution")
+
+        timeline = build_timeline(papers)
+
+        return {
+            "papers": papers,
+            "summaries": summaries,
+            "timeline": timeline,
+            "thoughts": self.thoughts
+        }
+
+# -------------------- MAIN HEADER -------------------- #
 st.markdown("""
-<div style='background-color:#1a1a1a; padding:30px; border-radius:15px; text-align:center; margin-bottom:20px;'>
-    <h1 style='color:white; margin-bottom:10px;'>📚 AURA-Lit – Your Research Assistant</h1>
-    <p style='color:#dcdcdc; font-size:18px; line-height:1.6; max-width:800px; margin:auto;'>
-    AI-powered tool to help researchers quickly understand relevant papers, 
-    summarize existing systems, and visualize the evolution of techniques over time.
-    </p>
+<div style='background:#1a1a1a;padding:30px;border-radius:15px;text-align:center;margin-bottom:20px;'>
+<h1>📚 AURA-Lit – AI Research Agent</h1>
+<p style='color:#cccccc;font-size:16px;'>
+An AI-agent-driven system for automated literature understanding.
+</p>
 </div>
 """, unsafe_allow_html=True)
 
 # -------------------- INPUT FORM -------------------- #
-with st.form(key="research_form"):
-    st.markdown("<h3 style='color:white;'>📝 Enter Your Research Topic</h3>", unsafe_allow_html=True)
-    st.markdown("""
-    <p style='color:#dcdcdc; font-size:14px; line-height:1.5'>
-    Type the research title or keywords below. Use commas to separate multiple keywords for more accurate results.
-    </p>
-    """, unsafe_allow_html=True)
-    
-    research_title = st.text_input("", placeholder="e.g., 'AI-driven IoT Security Framework'")
-    
-    submitted = st.form_submit_button("🔍 Analyze", help="Click to fetch relevant papers and summarize existing systems")
+with st.form("research_form"):
+    research_title = st.text_input(
+        "📝 Enter Research Topic",
+        placeholder="e.g., AI-driven IoT Security Framework"
+    )
+    submitted = st.form_submit_button("🔍 Analyze")
 
-# -------------------- FEEDBACK / RESULTS PLACEHOLDER -------------------- #
+# -------------------- AGENT EXECUTION -------------------- #
 if submitted:
     if not research_title.strip():
-        st.warning("⚠️ Please enter a research title to analyze.")
+        st.warning("⚠️ Please enter a research title.")
     else:
-        # Success alert with styled box
-        st.markdown(f"""
-        <div style='background-color:#111111; border-left:5px solid #ffffff; padding:15px; border-radius:8px; margin-bottom:15px;'>
-            <b>Analyzing Research Topic:</b> <span style='color:#ffffff'>{research_title}</span><br>
-            <span style='color:#dcdcdc;'>Fetching relevant papers and generating summaries... (Phase 1 in progress)</span>
-        </div>
-        """, unsafe_allow_html=True)
-      # -------------------- TWO COLUMNS LAYOUT -------------------- #
-col1, col2 = st.columns([2, 3])
+        agent = AURALitAgent()
+        result = agent.run(research_title)
 
-# ---------- LEFT COLUMN: Paper Cards ---------- #
-with col1:
-    st.markdown("<h3 style='color:white;'>📄 Relevant Papers</h3>", unsafe_allow_html=True)
-    st.info("Paper metadata will appear here once retrieval is implemented.")
+        st.success(f"Analyzing: {research_title}")
 
-    example_papers = [
-        {"title": "AI-driven IoT Security", "authors": "Author A et al.", "year": "2023", "link": "#"},
-        {"title": "ML for Cyber Defense", "authors": "Author B et al.", "year": "2022", "link": "#"},
-        {"title": "Deep Learning Threat Detection", "authors": "Author C et al.", "year": "2021", "link": "#"},
-    ]
+        # -------------------- AGENT REASONING -------------------- #
+        with st.expander("🤖 AURA-Agent Reasoning"):
+            for t in result["thoughts"]:
+                st.write("•", t)
 
-    for paper in example_papers:
-        st.markdown(f"""
-        <div style='background-color:#1b1b1b; padding:15px; border-radius:12px; margin-bottom:15px; border:1px solid #444; transition: transform 0.2s;'>
-            <h4 style='color:#ffffff; margin-bottom:5px;'>{paper['title']}</h4>
-            <p style='color:#bbbbbb; margin:0; font-size:14px;'><i>{paper['authors']}</i> | {paper['year']}</p>
-            <a href='{paper['link']}' target='_blank' style='color:#1ecbe1; text-decoration:none; font-size:14px;'>🔗 Read Paper</a>
-        </div>
-        """, unsafe_allow_html=True)
+        col1, col2 = st.columns([2, 3])
 
-# ---------- RIGHT COLUMN: Timeline ---------- #
-with col2:
-    st.markdown("<h3 style='color:white;'>🕒 Existing Systems Timeline</h3>", unsafe_allow_html=True)
-    st.info("Year-wise summaries of techniques will appear here.")
+        # -------------------- PAPERS -------------------- #
+        with col1:
+            st.markdown("### 📄 Relevant Papers")
 
-    timeline_events = [
-        {"year_range": "2015-2018", "desc": "Rule-based methods dominate."},
-        {"year_range": "2019-2021", "desc": "Machine learning approaches improve detection."},
-        {"year_range": "2022-Present", "desc": "Deep learning & hybrid models reduce false positives."}
-    ]
+            if not result["papers"]:
+                st.info("No papers retrieved. API may be unavailable.")
+            else:
+                for p in result["papers"]:
+                    st.markdown(f"""
+                    <div style='background:#1b1b1b;padding:15px;border-radius:12px;margin-bottom:12px;border:1px solid #444;'>
+                        <h4>{p['title']}</h4>
+                        <p style='color:#bbbbbb;font-size:14px;'>
+                        <i>{p['authors']}</i> | {p['year']}
+                        </p>
+                        <a href="{p['link']}" target="_blank">🔗 Read Paper</a>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-    # Create timeline with visual markers
-    for event in timeline_events:
-        st.markdown(f"""
-        <div style='display:flex; align-items:flex-start; margin-bottom:15px;'>
-            <div style='width:10px; height:10px; background-color:#ffffff; border-radius:50%; margin-top:6px; margin-right:10px;'></div>
-            <div style='background-color:#1b1b1b; padding:12px 15px; border-radius:12px; border:1px solid #444; flex:1;'>
-                <b style='color:#ffffff;'>{event['year_range']}</b><br>
-                <span style='color:#bbbbbb; font-size:14px;'>{event['desc']}</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        # -------------------- TIMELINE -------------------- #
+        with col2:
+            st.markdown("### 🕒 Existing Systems Timeline")
+
+            if not result["timeline"]:
+                st.info("Timeline will appear once papers are available.")
+            else:
+                for year, titles in result["timeline"].items():
+                    st.markdown(f"""
+                    <div style='background:#1b1b1b;padding:12px;border-radius:12px;margin-bottom:10px;border:1px solid #444;'>
+                        <b>{year}</b><br>
+                        <span style='color:#bbbbbb;font-size:14px;'>
+                        {", ".join(titles[:2])}
+                        </span>
+                    </div>
+                    """, unsafe_allow_html=True)
