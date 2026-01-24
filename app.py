@@ -1,6 +1,17 @@
 import streamlit as st
 from paper_fetcher import fetch_papers
 from timeline_builder import build_timeline
+from summarizer import summarize_paper, extract_trends
+import os
+import openai
+
+# -------------------- SAFE OPENAI KEY -------------------- #
+try:
+    openai.api_key = st.secrets["OPENAI_API_KEY"]
+except KeyError:
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    if not openai.api_key:
+        st.error("⚠️ OpenAI API key not found. Add it to .streamlit/secrets.toml or environment variables.")
 
 # -------------------- PAGE CONFIG -------------------- #
 st.set_page_config(
@@ -10,14 +21,14 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# -------------------- CUSTOM CSS (DARK THEME) -------------------- #
+# -------------------- CUSTOM CSS (DARK THEME + CARD STYLES) -------------------- #
 st.markdown("""
 <style>
 body, .stApp {
     background-color: #111111;
     color: #f5f5f5;
 }
-h1, h2, h3 {
+h1, h2, h3, h4 {
     color: #ffffff;
 }
 .stButton>button {
@@ -25,6 +36,10 @@ h1, h2, h3 {
     color: #111111;
     font-weight: bold;
     border-radius: 8px;
+}
+.paper-card:hover {
+    border-color: #888 !important;
+    background-color: #1f1f1f !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -100,9 +115,12 @@ if submitted:
         st.warning("⚠️ Please enter a valid research topic.")
     else:
         agent = AURALitAgent()
-
         with st.spinner("Analyzing academic literature..."):
             result = agent.run(research_title)
+
+        # Initialize session state for summaries
+        if "summaries" not in st.session_state:
+            st.session_state.summaries = {}
 
         # -------------------- STATUS -------------------- #
         if result["papers"]:
@@ -115,38 +133,35 @@ if submitted:
             for t in result["thoughts"]:
                 st.write("•", t)
 
-        col1, col2 = st.columns([2, 3])
-
-        # -------------------- PAPERS -------------------- #
-        with col1:
-            st.markdown("### 📄 Relevant Papers")
-
-            if not result["papers"]:
-                st.info("No papers available to display.")
-            else:
-                for p in result["papers"]:
-                    st.markdown(f"""
-                    <div style='background:#1b1b1b;padding:15px;border-radius:12px;
-                                margin-bottom:12px;border:1px solid #444;'>
-                        <h4>{p['title']}</h4>
-                        <p style='color:#bbbbbb;font-size:14px;'>
-                        <i>{p['authors']}</i> | {p['year']} | {p['source']}
-                        </p>
-                        <a href="{p['link']}" target="_blank">🔗 Read Paper</a>
-                    </div>
-                    """, unsafe_allow_html=True)
-
         # -------------------- TIMELINE -------------------- #
-        with col2:
-            st.markdown("### 🕒 Research Evolution Timeline")
+        st.markdown("### 🕒 Research Evolution Timeline")
+        if not result["timeline"]:
+            st.info("Timeline will appear once papers are available.")
+        else:
+            for year, items in result["timeline"].items():
+                with st.expander(f"🔹 {year} — {len(items)} paper(s)", expanded=False):
+                    for p in items:
+                        paper_id = p['title']  # unique key per paper
 
-            if not result["timeline"]:
-                st.info("Timeline will appear once papers are available.")
-            else:
-                for year, items in result["timeline"].items():
-                    st.markdown(f"""
-                    <div style='background:#1b1b1b;padding:12px;border-radius:12px;
-                                margin-bottom:10px;border:1px solid #444;'>
-                        <b>{year}</b> — {len(items)} paper(s)
-                    </div>
-                    """, unsafe_allow_html=True)
+                        st.markdown(f"""
+                        <div class='paper-card' style='background:#1b1b1b;padding:12px;border-radius:12px;
+                                    margin-bottom:8px;border:1px solid #444;'>
+                            <h4>{p['title']}</h4>
+                            <p style='color:#bbbbbb;font-size:14px;'>
+                            <i>{p['authors']}</i> | {p['source']}
+                            </p>
+                            <a href="{p['link']}" target="_blank">🔗 Read Paper</a>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        # --- Form per paper for summarize button ---
+                        with st.form(key=f"summarize_form_{paper_id}"):
+                            summarize_clicked = st.form_submit_button("🤖 Summarize")
+                            if summarize_clicked:
+                                with st.spinner("Generating summary..."):
+                                    summary = summarize_paper(p['title'], p.get('abstract', ''))
+                                    st.session_state.summaries[paper_id] = summary
+
+                        # Display summary if it exists in session state
+                        if paper_id in st.session_state.summaries:
+                            st.markdown(f"**Summary:** {st.session_state.summaries[paper_id]}")
