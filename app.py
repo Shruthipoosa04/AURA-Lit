@@ -71,17 +71,17 @@ class AURALitAgent:
         self.thoughts.append(step)
 
     def run(self, query):
-        self.think("🔎 Understanding research intent")
-        self.think("📚 Fetching papers from academic sources")
+        self.think(" Understanding research intent")
+        self.think(" Fetching papers from academic sources")
 
         papers = fetch_papers(query, limit=15, years_back=10)
 
         if papers:
-            self.think(f"✅ Retrieved {len(papers)} papers from last 10 years")
+            self.think(f" Retrieved {len(papers)} papers from last 10 years")
         else:
             self.think("⚠️ No results returned from sources")
 
-        self.think("🕒 Constructing year-wise research timeline")
+        self.think(" Constructing year-wise research timeline")
         timeline = build_timeline(papers)
 
         #self.think("📊 Extracting research trends")
