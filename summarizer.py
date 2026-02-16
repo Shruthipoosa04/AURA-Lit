@@ -1,35 +1,48 @@
 from openai import OpenAI
-import os
+import streamlit as st
+import time
+from openai import RateLimitError
 
-# Create client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+
+def safe_chat_completion(messages, model="gpt-4o-mini", temperature=0.3):
+    """
+    Safe wrapper to prevent app crash during rate limit.
+    """
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=temperature
+        )
+        return response.choices[0].message.content
+
+    except RateLimitError:
+        return "⚠️ API rate limit reached. Please try again in a minute."
+
+    except Exception as e:
+        return f"⚠️ Error generating response."
+
 
 # -------------------- SUMMARIZE -------------------- #
 def summarize_paper(title, abstract):
 
     prompt = f"""
-    Summarize the following research paper in 150-200 words.
-    
+    Summarize this research paper:
+
     Title: {title}
     Abstract: {abstract}
-    
-    Provide:
-    - Core objective
-    - Methodology
-    - Key findings
-    - Contribution
+
+    Include objective, method, findings, contribution.
     """
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",  # lightweight + cheaper
-        messages=[
-            {"role": "system", "content": "You are an academic research assistant."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.3
-    )
+    messages = [
+        {"role": "system", "content": "You are an academic research assistant."},
+        {"role": "user", "content": prompt}
+    ]
 
-    return response.choices[0].message.content
+    return safe_chat_completion(messages)
 
 
 # -------------------- TREND EXTRACTION -------------------- #
@@ -40,26 +53,21 @@ def extract_trends(papers):
     )
 
     if not abstracts:
-        return "Not enough data for trend analysis."
+        return "Not enough abstracts available."
 
     prompt = f"""
-    Analyze the following research abstracts and identify:
-    - Dominant research themes
+    Analyze these abstracts and identify:
+    - Dominant themes
     - Emerging trends
-    - Frequently used methodologies
-    - Future research directions
+    - Common methodologies
+    - Future directions
 
-    Abstracts:
-    {abstracts[:4000]}
+    {abstracts[:3000]}
     """
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are an academic research analyst."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.2
-    )
+    messages = [
+        {"role": "system", "content": "You are a research trend analyst."},
+        {"role": "user", "content": prompt}
+    ]
 
-    return response.choices[0].message.content
+    return safe_chat_completion(messages, temperature=0.2)
