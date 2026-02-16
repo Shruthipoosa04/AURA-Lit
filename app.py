@@ -1,7 +1,7 @@
 import streamlit as st
 from paper_fetcher import fetch_papers
 from timeline_builder import build_timeline
-from summarizer import summarize_paper, extract_trends
+# from summarizer import summarize_paper, extract_trends
 import os
 import openai
 
@@ -84,14 +84,14 @@ class AURALitAgent:
         self.think("🕒 Constructing year-wise research timeline")
         timeline = build_timeline(papers)
 
-        self.think("📊 Extracting research trends")
-        trends = extract_trends(papers)
+        #self.think("📊 Extracting research trends")
+        #trends = extract_trends(papers)
 
         return {
             "papers": papers,
             "timeline": timeline,
             "thoughts": self.thoughts,
-            "trends": trends
+           # "trends": trends
         }
 
 # -------------------- HEADER -------------------- #
@@ -138,11 +138,11 @@ if submitted:
                 st.write(t)
 
         # -------------------- TRENDS -------------------- #
-        st.markdown("### 📈 Research Trends & Insights")
-        if result["trends"]:
-            st.info(result["trends"])
-        else:
-            st.info("Trend insights will appear once sufficient papers are available.")
+        #st.markdown("### 📈 Research Trends & Insights")
+        #if result["trends"]:
+         #   st.info(result["trends"])
+        #else:
+         #   st.info("Trend insights will appear once sufficient papers are available.")
 
         # -------------------- TIMELINE -------------------- #
         st.markdown("### 🕒 Research Evolution Timeline")
@@ -168,14 +168,14 @@ if submitted:
                         """, unsafe_allow_html=True)
 
                         # -------- Summarize Button -------- #
-                        if st.button("🤖 Summarize", key=f"btn_{paper_id}"):
+                       # if st.button("🤖 Summarize", key=f"btn_{paper_id}"):
 
-                            with st.spinner("Generating AI summary..."):
-                                summary = summarize_paper(
-                                    p['title'],
-                                    p.get('abstract', '')
-                                )
-                                st.session_state.summaries[paper_id] = summary
+                        #    with st.spinner("Generating AI summary..."):
+                         #       summary = summarize_paper(
+                          #          p['title'],
+                           #         p.get('abstract', '')
+                            #    )
+                             #   st.session_state.summaries[paper_id] = summary
 
                         # -------- Display Summary -------- #
                         if paper_id in st.session_state.summaries:
