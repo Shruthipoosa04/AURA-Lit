@@ -5,14 +5,6 @@ from summarizer import summarize_paper, extract_trends
 import os
 import openai
 
-# -------------------- SAFE OPENAI KEY -------------------- #
-try:
-    openai.api_key = st.secrets["OPENAI_API_KEY"]
-except KeyError:
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-    if not openai.api_key:
-        st.error("⚠️ OpenAI API key not found. Add it to .streamlit/secrets.toml or environment variables.")
-
 # -------------------- PAGE CONFIG -------------------- #
 st.set_page_config(
     page_title="AURA-Lit AI",
