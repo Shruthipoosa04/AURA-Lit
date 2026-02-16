@@ -146,14 +146,14 @@ if submitted:
                         </div>
                         """, unsafe_allow_html=True)
 
-                        # --- Form per paper for summarize button ---
-                        with st.form(key=f"summarize_form_{paper_id}"):
-                            summarize_clicked = st.form_submit_button("🤖 Summarize")
-                            if summarize_clicked:
-                                with st.spinner("Generating summary..."):
-                                    summary = summarize_paper(p['title'], p.get('abstract', ''))
-                                    st.session_state.summaries[paper_id] = summary
+                       # --- Form per paper for summarize button ---
+# with st.form(key=f"summarize_form_{paper_id}"):
+#     summarize_clicked = st.form_submit_button("🤖 Summarize")
+#     if summarize_clicked:
+#         with st.spinner("Generating summary..."):
+#             summary = summarize_paper(p['title'], p.get('abstract', ''))
+#             st.session_state.summaries[paper_id] = summary
 
-                        # Display summary if it exists in session state
-                        if paper_id in st.session_state.summaries:
-                            st.markdown(f"**Summary:** {st.session_state.summaries[paper_id]}")
+# # Display summary if it exists in session state
+# if paper_id in st.session_state.summaries:
+#     st.markdown(f"**Summary:** {st.session_state.summaries[paper_id]}")
