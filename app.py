@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# -------------------- CUSTOM CSS (DARK THEME + CARD STYLES) -------------------- #
+# -------------------- CUSTOM CSS -------------------- #
 st.markdown("""
 <style>
 body, .stApp {
@@ -32,6 +32,13 @@ h1, h2, h3, h4 {
 .paper-card:hover {
     border-color: #888 !important;
     background-color: #1f1f1f !important;
+}
+.summary-card {
+    background:#181818;
+    padding:15px;
+    border-radius:12px;
+    margin-top:10px;
+    border:1px solid #333;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -64,23 +71,27 @@ class AURALitAgent:
         self.thoughts.append(step)
 
     def run(self, query):
-        self.think("Understanding user research intent")
-        self.think("Fetching papers from multiple academic sources")
+        self.think("🔎 Understanding research intent")
+        self.think("📚 Fetching papers from academic sources")
 
         papers = fetch_papers(query, limit=15, years_back=10)
 
         if papers:
-            self.think(f"Retrieved {len(papers)} papers across last 10 years")
+            self.think(f"✅ Retrieved {len(papers)} papers from last 10 years")
         else:
-            self.think("All academic sources unavailable or returned no results")
+            self.think("⚠️ No results returned from sources")
 
-        self.think("Constructing year-wise research timeline")
+        self.think("🕒 Constructing year-wise research timeline")
         timeline = build_timeline(papers)
+
+        self.think("📊 Extracting research trends")
+        trends = extract_trends(papers)
 
         return {
             "papers": papers,
             "timeline": timeline,
-            "thoughts": self.thoughts
+            "thoughts": self.thoughts,
+            "trends": trends
         }
 
 # -------------------- HEADER -------------------- #
@@ -107,10 +118,11 @@ if submitted:
         st.warning("⚠️ Please enter a valid research topic.")
     else:
         agent = AURALitAgent()
-        with st.spinner("Analyzing academic literature..."):
+
+        with st.spinner("🤖 AURA-Agent analyzing literature..."):
             result = agent.run(research_title)
 
-        # Initialize session state for summaries
+        # Initialize session state
         if "summaries" not in st.session_state:
             st.session_state.summaries = {}
 
@@ -118,22 +130,31 @@ if submitted:
         if result["papers"]:
             st.success(f"✅ {len(result['papers'])} papers retrieved across a 10-year timeline")
         else:
-            st.warning("⚠️ Primary sources unavailable. Please try again later.")
+            st.warning("⚠️ No papers found.")
 
         # -------------------- AGENT REASONING -------------------- #
-        with st.expander("🤖 AURA-Agent Reasoning"):
+        with st.expander("🤖 AURA-Agent Reasoning", expanded=False):
             for t in result["thoughts"]:
-                st.write("•", t)
+                st.write(t)
+
+        # -------------------- TRENDS -------------------- #
+        st.markdown("### 📈 Research Trends & Insights")
+        if result["trends"]:
+            st.info(result["trends"])
+        else:
+            st.info("Trend insights will appear once sufficient papers are available.")
 
         # -------------------- TIMELINE -------------------- #
         st.markdown("### 🕒 Research Evolution Timeline")
+
         if not result["timeline"]:
             st.info("Timeline will appear once papers are available.")
         else:
             for year, items in result["timeline"].items():
                 with st.expander(f"🔹 {year} — {len(items)} paper(s)", expanded=False):
+
                     for p in items:
-                        paper_id = p['title']  # unique key per paper
+                        paper_id = f"{year}_{p['title']}"
 
                         st.markdown(f"""
                         <div class='paper-card' style='background:#1b1b1b;padding:12px;border-radius:12px;
@@ -146,14 +167,21 @@ if submitted:
                         </div>
                         """, unsafe_allow_html=True)
 
-                       # --- Form per paper for summarize button ---
-# with st.form(key=f"summarize_form_{paper_id}"):
-#     summarize_clicked = st.form_submit_button("🤖 Summarize")
-#     if summarize_clicked:
-#         with st.spinner("Generating summary..."):
-#             summary = summarize_paper(p['title'], p.get('abstract', ''))
-#             st.session_state.summaries[paper_id] = summary
+                        # -------- Summarize Button -------- #
+                        if st.button("🤖 Summarize", key=f"btn_{paper_id}"):
 
-# # Display summary if it exists in session state
-# if paper_id in st.session_state.summaries:
-#     st.markdown(f"**Summary:** {st.session_state.summaries[paper_id]}")
+                            with st.spinner("Generating AI summary..."):
+                                summary = summarize_paper(
+                                    p['title'],
+                                    p.get('abstract', '')
+                                )
+                                st.session_state.summaries[paper_id] = summary
+
+                        # -------- Display Summary -------- #
+                        if paper_id in st.session_state.summaries:
+                            st.markdown(f"""
+                            <div class='summary-card'>
+                                <b>AI Summary:</b><br><br>
+                                {st.session_state.summaries[paper_id]}
+                            </div>
+                            """, unsafe_allow_html=True)
