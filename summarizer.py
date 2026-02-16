@@ -1,36 +1,65 @@
-# summarizer.py
-import openai
-import streamlit as st
+from openai import OpenAI
+import os
 
- 
+# Create client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# -------------------- SUMMARIZE -------------------- #
 def summarize_paper(title, abstract):
-    """
-    Summarize a single academic paper using GPT.
-    """
-    prompt = f"Summarize this academic paper concisely:\nTitle: {title}\nAbstract: {abstract}"
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        return f"Error: {e}"
 
+    prompt = f"""
+    Summarize the following research paper in 150-200 words.
+    
+    Title: {title}
+    Abstract: {abstract}
+    
+    Provide:
+    - Core objective
+    - Methodology
+    - Key findings
+    - Contribution
+    """
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",  # lightweight + cheaper
+        messages=[
+            {"role": "system", "content": "You are an academic research assistant."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.3
+    )
+
+    return response.choices[0].message.content
+
+
+# -------------------- TREND EXTRACTION -------------------- #
 def extract_trends(papers):
+
+    abstracts = "\n\n".join(
+        [p.get("abstract", "") for p in papers if p.get("abstract")]
+    )
+
+    if not abstracts:
+        return "Not enough data for trend analysis."
+
+    prompt = f"""
+    Analyze the following research abstracts and identify:
+    - Dominant research themes
+    - Emerging trends
+    - Frequently used methodologies
+    - Future research directions
+
+    Abstracts:
+    {abstracts[:4000]}
     """
-    Extract trends and insights from a list of papers.
-    """
-    abstracts = "\n".join([p.get('abstract','') for p in papers])
-    prompt = f"Analyze these academic papers and provide:\n- Top topics\n- Emerging trends\n- Common methodologies\n\nAbstracts:\n{abstracts}"
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        return f"Error: {e}"
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are an academic research analyst."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.2
+    )
+
+    return response.choices[0].message.content
