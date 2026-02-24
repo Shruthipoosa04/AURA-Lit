@@ -1,9 +1,17 @@
-import ollama
+from groq import Groq
+import os
 import re
 
 
+# ==========================
+# GROQ CLIENT
+# ==========================
+
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+
 # =========================================================
-# DOMAIN & SUBDOMAIN KNOWLEDGE BASE (Expanded + Weighted)
+# DOMAIN & SUBDOMAIN KNOWLEDGE BASE
 # =========================================================
 
 DOMAIN_MAP = {
@@ -26,48 +34,6 @@ DOMAIN_MAP = {
             "Malware Analysis": ["trojan", "ransomware", "exploit"],
             "Digital Forensics": ["forensic", "investigation", "evidence"],
             "Cyber Deception": ["honeypot", "deception", "trap"]
-        }
-    },
-
-    "Healthcare & Biomedical": {
-        "keywords": ["disease", "patient", "medical", "clinical", "diagnosis", "health"],
-        "subdomains": {
-            "Medical Imaging": ["mri", "ct", "x-ray"],
-            "Bioinformatics": ["genome", "protein", "dna"],
-            "Public Health": ["epidemiology", "pandemic", "population"]
-        }
-    },
-
-    "Engineering & Robotics": {
-        "keywords": ["control", "mechanical", "robot", "automation", "energy", "robotic"],
-        "subdomains": {
-            "Robotics": ["robot", "manipulator", "actuator"],
-            "Control Systems": ["pid", "feedback", "stability"],
-            "Renewable Energy": ["solar", "wind", "battery"]
-        }
-    },
-
-    "Environmental Science": {
-        "keywords": ["climate", "environment", "sustainability", "ecology"],
-        "subdomains": {
-            "Climate Modeling": ["temperature", "emission", "carbon"],
-            "Sustainability": ["green", "renewable", "sustainable"]
-        }
-    },
-
-    "Finance & Economics": {
-        "keywords": ["finance", "market", "economic", "investment"],
-        "subdomains": {
-            "FinTech": ["blockchain", "crypto", "digital currency"],
-            "Risk Modeling": ["risk", "portfolio", "forecasting"]
-        }
-    },
-
-    "Physics & Mathematics": {
-        "keywords": ["quantum", "particle", "equation", "theorem"],
-        "subdomains": {
-            "Quantum Computing": ["qubit", "quantum circuit"],
-            "Applied Mathematics": ["optimization", "numerical"]
         }
     }
 }
@@ -94,7 +60,7 @@ def clean_text(text):
 
 
 # =========================================================
-# DOMAIN + SUBDOMAIN INFERENCE (Multi-label + Ranking)
+# DOMAIN INFERENCE
 # =========================================================
 
 def infer_domains(title):
@@ -116,14 +82,13 @@ def infer_domains(title):
     if not domain_scores:
         return ["General Research"], []
 
-    # Sort domains by keyword match strength
     sorted_domains = sorted(domain_scores, key=domain_scores.get, reverse=True)
 
     return sorted_domains, list(set(subdomains_detected))
 
 
 # =========================================================
-# RESEARCH TYPE DETECTION (Improved)
+# RESEARCH TYPE
 # =========================================================
 
 def infer_research_type(title):
@@ -143,7 +108,7 @@ def infer_research_type(title):
 
 
 # =========================================================
-# NOVELTY ESTIMATION (Smarter)
+# NOVELTY
 # =========================================================
 
 def novelty_estimation(title):
@@ -159,7 +124,7 @@ def novelty_estimation(title):
 
 
 # =========================================================
-# CONFIDENCE SCORING (Refined Logic)
+# CONFIDENCE
 # =========================================================
 
 def confidence_score(title):
@@ -180,10 +145,10 @@ def confidence_score(title):
 
 
 # =========================================================
-# OLLAMA REFINEMENT (More Structured Prompt)
+# GROQ REFINEMENT (REPLACED OLLAMA)
 # =========================================================
 
-def ollama_refinement(title, domains, subdomains, research_type):
+def llm_refinement(title, domains, subdomains, research_type):
 
     prompt = f"""
 You are a senior academic research analyst.
@@ -202,31 +167,29 @@ Subdomains:
 Research Type:
 {research_type}
 
-Write ONE professional academic paragraph that clearly explains:
-- core research objective
-- expected methodology
-- evaluation approach
-- innovation aspect
-- scholarly and industrial relevance
-
-Avoid bullet points.
-Avoid exaggeration.
-Be precise and analytical.
+Write ONE professional academic paragraph explaining:
+- objective
+- methodology
+- evaluation
+- innovation
+- impact
 """
 
     try:
-        response = ollama.chat(
-            model="phi3",
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
-            options={"temperature": 0.4}
+            temperature=0.4
         )
-        return response["message"]["content"].strip()
+
+        return response.choices[0].message.content.strip()
+
     except Exception:
         return None
 
 
 # =========================================================
-# FALLBACK PARAGRAPH (More Academic Tone)
+# FALLBACK
 # =========================================================
 
 def fallback_paragraph(title, domains, research_type):
@@ -235,13 +198,12 @@ def fallback_paragraph(title, domains, research_type):
         f"{', '.join(domains)}. It likely represents a {research_type.lower()} "
         f"that develops structured methodologies supported by empirical evaluation. "
         f"The study may contribute theoretical advancements while also offering "
-        f"practical implementation insights, thereby strengthening both academic "
-        f"understanding and applied innovation within the domain."
+        f"practical implementation insights."
     )
 
 
 # =========================================================
-# MAIN FUNCTION
+# MAIN
 # =========================================================
 
 def predict_contribution(title):
@@ -249,7 +211,7 @@ def predict_contribution(title):
     domains, subdomains = infer_domains(title)
     research_type = infer_research_type(title)
 
-    paragraph = ollama_refinement(title, domains, subdomains, research_type)
+    paragraph = llm_refinement(title, domains, subdomains, research_type)
 
     if not paragraph:
         paragraph = fallback_paragraph(title, domains, research_type)
@@ -259,8 +221,7 @@ def predict_contribution(title):
 
     impact = (
         "This research may influence future investigations, inspire "
-        "methodological refinement, and contribute to technological "
-        "advancements across academic and industrial ecosystems."
+        "methodological refinement, and contribute to technological advancements."
     )
 
     return {
